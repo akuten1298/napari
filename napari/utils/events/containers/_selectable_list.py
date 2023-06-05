@@ -72,19 +72,49 @@ class SelectableEventedList(Selectable[_T], EventedList[_T]):
         """Select all items in the list."""
         self.selection.update(self)
 
+    # def update_selection(self, idx: int):
+    #     initial_len = len(self)
+    #     do_add = False
+    #     if isinstance(idx, int):
+    #         if initial_len != len(self):
+    #             print("Initial len: ", initial_len, " Final len: ", len(self))
+    #             new = max(0, (idx - 1))
+    #             do_add = len(self) > new
+    #     else:
+    #         print("Not In isInstance")
+    #         *root, _idx = idx
+    #         new = (*tuple(root), _idx - 1) if _idx >= 1 else tuple(root)
+    #         do_add = len(self) > new[0]
+    #     print("last mile")
+    #     if do_add:
+    #         self.selection.add(self[new])
+
     def remove_selected(self):
         """Remove selected items from list."""
         idx = 0
+        initial_len = len(self)
+        # print("Self selection", self.selection)
         for i in list(self.selection):
+            # print("Before self: ", self)
             idx = self.index(i)
+            # print("is this before eventemitter call?")
             self.remove(i)
+            # print("is this after eventemitter call?")
+            # print("idx: ", idx)
+            # print("After: ", self)
+        # Doubt
+        do_add = False
         if isinstance(idx, int):
-            new = max(0, (idx - 1))
-            do_add = len(self) > new
+            if initial_len != len(self):
+                # print("Initial len: ", initial_len, " Final len: ", len(self))
+                new = max(0, (idx - 1))
+                do_add = len(self) > new
         else:
+            # print("Not In isInstance")
             *root, _idx = idx
             new = (*tuple(root), _idx - 1) if _idx >= 1 else tuple(root)
             do_add = len(self) > new[0]
+        # print("last mile")
         if do_add:
             self.selection.add(self[new])
 

@@ -34,6 +34,12 @@ from napari.utils.events.containers._typed import (
 )
 from napari.utils.events.event import EmitterGroup, Event
 from napari.utils.events.types import SupportsEvents
+from napari.utils.notifications import (
+    Notification,
+    NotificationSeverity,
+    notification_manager,
+    show_error,
+)
 from napari.utils.translations import trans
 
 logger = logging.getLogger(__name__)
@@ -176,13 +182,43 @@ class EventedList(TypedMutableSequence[_T]):
             )
         )
 
+    def _confirm_delete(self, index: int, parent):
+        print("Removing event triggered")
+        parent.events.removing(index=index)
+        self._disconnect_child_emitters(parent[index])
+        item = parent._list.pop(index)
+        self._process_delete_item(item)
+        print("Removed event triggered")
+        parent.events.removed(index=index, value=item)
+
+    def _send_confirm_delete_notification(self, index: int, parent):
+        notification = Notification(
+            'Are you sure you want to delete?',
+            NotificationSeverity.WARNING,
+            actions=[
+                ('Yes', lambda x: self._confirm_delete(index, parent)),
+                ('No', lambda x: print("no")),
+            ],
+        )
+        notification_manager.dispatch(notification)
+
     def __delitem__(self, key: Index):
         # delete from the end
-        for parent, index in sorted(self._delitem_indices(key), reverse=True):
+        for parent, index in sorted(
+            self._delitem_indices(key), reverse=True
+        ):  # why sorted?
+            layer = parent[index]
+            print(layer.name)
+            if "nodel" in layer.name.lower():
+                show_error("Marked as not to be deleted")
+                return
+            # self._send_confirm_delete_notification(index, parent)
+            print("Removing event triggered")
             parent.events.removing(index=index)
             self._disconnect_child_emitters(parent[index])
             item = parent._list.pop(index)
             self._process_delete_item(item)
+            print("Removed event triggered")
             parent.events.removed(index=index, value=item)
 
     def _process_delete_item(self, item: _T):

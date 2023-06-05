@@ -2548,6 +2548,7 @@ class Shapes(Layer):
 
     def remove_selected(self):
         """Remove any selected shapes."""
+        print("is this involved????")
         index = list(self.selected_data)
         to_remove = sorted(index, reverse=True)
         for ind in to_remove:
