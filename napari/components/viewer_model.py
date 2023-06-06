@@ -3,6 +3,7 @@ from __future__ import annotations
 import inspect
 import itertools
 import os
+import threading
 import warnings
 from functools import lru_cache
 from pathlib import Path
@@ -499,12 +500,17 @@ class ViewerModel(KeymapProvider, MousemapProvider, EventedModel):
             return
         active = self.layers.selection.active
         if active is not None:
-            self.status = active.get_status(
-                self.cursor.position,
-                view_direction=self.cursor._view_direction,
-                dims_displayed=list(self.dims.displayed),
-                world=True,
+            thread = threading.Thread(
+                target=active.get_status_wrapper,
+                args=(self.cursor.position,),
+                kwargs={
+                    'view_direction': self.cursor._view_direction,
+                    'dims_displayed': list(self.dims.displayed),
+                    'world': True,
+                    'viewer': self,
+                },
             )
+            thread.start()
 
             self.help = active.help
             if self.tooltip.visible:
