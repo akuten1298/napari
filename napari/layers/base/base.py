@@ -1210,6 +1210,7 @@ class Layer(KeymapProvider, MousemapProvider, ABC):
                     )
             else:
                 value = self._get_value(position)
+
         else:
             value = None
         # This should be removed as soon as possible, it is still
