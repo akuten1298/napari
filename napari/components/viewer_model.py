@@ -3,8 +3,8 @@ from __future__ import annotations
 import inspect
 import itertools
 import os
-import threading
 import warnings
+from concurrent.futures import Executor, ThreadPoolExecutor
 from functools import lru_cache
 from pathlib import Path
 from typing import (
@@ -168,6 +168,8 @@ class ViewerModel(KeymapProvider, MousemapProvider, EventedModel):
     _overlays: napari.utils.events.containers._evented_dict.EventedDict[str, Overlay]
         An EventedDict with as keys the string names of different napari overlays and as values the napari.Overlay
         objects.
+    _executor : concurrent.futures.ThreadPoolExecutor
+        manager for the get status wrapper threads
     """
 
     # Using allow_mutation=False means these attributes aren't settable and don't
@@ -175,6 +177,7 @@ class ViewerModel(KeymapProvider, MousemapProvider, EventedModel):
     camera: Camera = Field(default_factory=Camera, allow_mutation=False)
     cursor: Cursor = Field(default_factory=Cursor, allow_mutation=False)
     dims: Dims = Field(default_factory=Dims, allow_mutation=False)
+    _executor: Executor
     grid: GridCanvas = Field(default_factory=GridCanvas, allow_mutation=False)
     layers: LayerList = Field(
         default_factory=LayerList, allow_mutation=False
@@ -219,7 +222,7 @@ class ViewerModel(KeymapProvider, MousemapProvider, EventedModel):
             },
         )
         self.__config__.extra = Extra.ignore
-
+        self._executor: Executor = ThreadPoolExecutor(max_workers=1)
         settings = get_settings()
         self.tooltip.visible = settings.appearance.layer_tooltip_visibility
         settings.appearance.events.layer_tooltip_visibility.connect(
@@ -504,17 +507,7 @@ class ViewerModel(KeymapProvider, MousemapProvider, EventedModel):
             return
         active = self.layers.selection.active
         if active is not None:
-            thread = threading.Thread(
-                target=active.get_status_wrapper,
-                args=(self.cursor.position,),
-                kwargs={
-                    'view_direction': self.cursor._view_direction,
-                    'dims_displayed': list(self.dims.displayed),
-                    'world': True,
-                    'viewer': self,
-                },
-            )
-            thread.start()
+            self._executor.submit(self.get_status_wrapper)
 
             self.help = active.help
             if self.tooltip.visible:
@@ -526,6 +519,15 @@ class ViewerModel(KeymapProvider, MousemapProvider, EventedModel):
                 )
         else:
             self.status = 'Ready'
+
+    def get_status_wrapper(self):
+        active = self.layers.selection.active
+        self.status = active.get_status(
+            self.cursor.position,
+            view_direction=self.cursor._view_direction,
+            dims_displayed=list(self.dims.displayed),
+            world=True,
+        )
 
     def _on_grid_change(self):
         """Arrange the current layers is a 2D grid."""

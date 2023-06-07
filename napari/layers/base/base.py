@@ -1778,22 +1778,6 @@ class Layer(KeymapProvider, MousemapProvider, ABC):
             + source_info['plugin']
         )
 
-    def get_status_wrapper(
-        self,
-        position: Optional[Tuple[float, ...]] = None,
-        *,
-        view_direction: Optional[np.ndarray] = None,
-        dims_displayed: Optional[List[int]] = None,
-        world=False,
-        viewer=None,
-    ):
-        viewer.status = self.get_status(
-            position,
-            view_direction=view_direction,
-            dims_displayed=dims_displayed,
-            world=world,
-        )
-
     def get_status(
         self,
         position: Optional[Tuple[float, ...]] = None,
