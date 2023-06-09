@@ -1,11 +1,15 @@
 from __future__ import annotations
 
+import cProfile
 import inspect
+import io
 import itertools
 import os
+import pstats
 import warnings
 from functools import lru_cache
 from pathlib import Path
+from pstats import SortKey
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -520,6 +524,26 @@ class ViewerModel(KeymapProvider, MousemapProvider, EventedModel):
                 )
         else:
             self.status = 'Ready'
+
+    def get_status_wrapper(self):
+        pr = cProfile.Profile()
+        pr.enable()
+
+        active = self.layers.selection.active
+        self.status = active.get_status(
+            self.cursor.position,
+            view_direction=self.cursor._view_direction,
+            dims_displayed=list(self.dims.displayed),
+            world=True,
+        )
+
+        pr.disable()
+        s = io.StringIO()
+        sortby = SortKey.CUMULATIVE
+        ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
+        ps.print_stats()
+        print(s.getvalue())
+        print("------------------------------------------------------------")
 
     def _on_grid_change(self):
         """Arrange the current layers is a 2D grid."""

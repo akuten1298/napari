@@ -1,3 +1,4 @@
+import time
 import warnings
 from typing import Any, List, Optional, Tuple, Union
 
@@ -15,6 +16,7 @@ from napari.layers.utils.interactivity_utils import (
     nd_line_segment_to_displayed_data_ray,
 )
 from napari.layers.utils.layer_utils import calc_data_range
+from napari.utils import aabb
 from napari.utils.colormaps import AVAILABLE_COLORMAPS
 from napari.utils.events import Event
 from napari.utils.events.event_utils import connect_no_arg
@@ -685,6 +687,8 @@ class Surface(IntensityVisualizationMixin, Layer):
         if intersection_index is None:
             return None, None
 
+        print("intersection_index: ", intersection_index)
+
         # add the full nD coords to intersection
         intersection_point = start_point.copy()
         intersection_point[dims_displayed] = intersection
@@ -692,10 +696,30 @@ class Surface(IntensityVisualizationMixin, Layer):
         # calculate the value from the intersection
         triangle_vertex_indices = self._view_faces[intersection_index]
         triangle_vertices = self._data_view[triangle_vertex_indices]
+
+        print("triangle_vertex_indices: ", triangle_vertex_indices)
+        print("triangle_vertices: ", triangle_vertices)
+
         barycentric_coordinates = calculate_barycentric_coordinates(
             intersection, triangle_vertices
         )
         vertex_values = self._view_vertex_values[triangle_vertex_indices]
         intersection_value = (barycentric_coordinates * vertex_values).sum()
+
+        start_time = time.time()
+
+        mesh_triangles[0:10]
+        # print("trial triangles: ", trial_triangles)
+        # print("trial triangles len: ", len(trial_triangles))
+
+        bvh_root = aabb.construct_bvh(mesh_triangles)
+        print(len(bvh_root.bbox.triangles))
+
+        # aabb.print_bounding_boxes(bvh_root)
+
+        end_time = time.time()
+
+        elapsed_time = end_time - start_time
+        print("Elsapsed time: ", elapsed_time)
 
         return intersection_value, intersection_index
