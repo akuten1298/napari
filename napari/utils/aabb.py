@@ -25,8 +25,12 @@ def construct_bvh(triangles):
     )
 
     np.argmax(bounding_box.max_coords - bounding_box.min_coords)
-    # TODO: Should be optimized to use SAH partitioning technique
-    # sorted_triangles = sorted(triangles, key=lambda triangle: bounding_box.min_coords[split_axis])
+    # TODO: Should be optimized to use SAH partitioning technique.
+    # Tradeoff - might take longer time to build the tree but possibly faster querying when checking for intersection.
+    split_axis = 0
+    sorted_triangles = sorted(
+        triangles, key=lambda triangle: bounding_box.min_coords[split_axis]
+    )
     sorted_triangles = triangles
 
     if len(sorted_triangles) <= 1024:
