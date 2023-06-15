@@ -127,6 +127,10 @@ class Surface(IntensityVisualizationMixin, Layer):
         Whether and how to display the edges of the surface mesh with a wireframe.
     normals : None, dict or SurfaceNormals
         Whether and how to display the face and vertex normals of the surface mesh.
+    first_interaction: bool
+        First interaction for loading bvh
+    bvh_root: None
+        Root of the bvh tree
 
     Attributes
     ----------
@@ -166,7 +170,10 @@ class Surface(IntensityVisualizationMixin, Layer):
         Whether and how to display the edges of the surface mesh with a wireframe.
     normals : SurfaceNormals
         Whether and how to display the face and vertex normals of the surface mesh.
-
+    first_interaction: bool
+        First interaction for loading bvh
+    bvh_root: None
+        Root of the bvh tree
 
     Notes
     -----
@@ -288,6 +295,9 @@ class Surface(IntensityVisualizationMixin, Layer):
 
         self.wireframe = wireframe
         self.normals = normals
+
+        self.first_interaction = True
+        self.bvh_root = None
 
     def _calc_data_range(self, mode='data'):
         return calc_data_range(self.vertex_values)
@@ -637,6 +647,12 @@ class Surface(IntensityVisualizationMixin, Layer):
         """
         return
 
+    def is_first_interaction(self):
+        if self.first_interaction:
+            self.first_interaction = False
+            return True
+        return self.first_interaction
+
     def _get_value_3d(
         self,
         start_point: np.ndarray,
@@ -661,6 +677,9 @@ class Surface(IntensityVisualizationMixin, Layer):
         vertex : None
             Index of vertex if any that is at the coordinates.
         """
+
+        start_time = time.time()
+
         if len(dims_displayed) != 3:
             # only applies to 3D
             return None, None
@@ -683,43 +702,92 @@ class Surface(IntensityVisualizationMixin, Layer):
             ray_direction=ray_direction,
             triangles=mesh_triangles,
         )
+        print("Old intersection index: ", intersection_index)
+        # if intersection_index is None:
+        #     return None, None
 
-        if intersection_index is None:
-            return None, None
+        # # add the full nD coords to intersection
+        # intersection_point = start_point.copy()
+        # intersection_point[dims_displayed] = intersection
 
-        print("intersection_index: ", intersection_index)
+        # # calculate the value from the intersection
+        # triangle_vertex_indices = self._view_faces[intersection_index]
+        # triangle_vertices = self._data_view[triangle_vertex_indices]
 
-        # add the full nD coords to intersection
-        intersection_point = start_point.copy()
-        intersection_point[dims_displayed] = intersection
+        # # print("triangle_vertex_indices: ", triangle_vertex_indices)
+        # # print("triangle_vertices: ", triangle_vertices)
+        # # print("ray starting: ", start_position)
+        # # print("ray direction: ", ray_direction)
 
-        # calculate the value from the intersection
-        triangle_vertex_indices = self._view_faces[intersection_index]
-        triangle_vertices = self._data_view[triangle_vertex_indices]
+        # barycentric_coordinates = calculate_barycentric_coordinates(
+        #     intersection, triangle_vertices
+        # )
+        # vertex_values = self._view_vertex_values[triangle_vertex_indices]
+        # intersection_value = (barycentric_coordinates * vertex_values).sum()
 
-        print("triangle_vertex_indices: ", triangle_vertex_indices)
-        print("triangle_vertices: ", triangle_vertices)
+        # prev_end_time = time.time()
 
-        barycentric_coordinates = calculate_barycentric_coordinates(
-            intersection, triangle_vertices
-        )
-        vertex_values = self._view_vertex_values[triangle_vertex_indices]
-        intersection_value = (barycentric_coordinates * vertex_values).sum()
+        # print("--------------------------------Get value profiling starts--------------------------------")
+        # print("intersection_index: ", intersection_index)
+        # print("intersection: ", intersection)
+        # print("intersection value: ", intersection_value)
+        # print("Previous approach total time: ", prev_end_time - prev_start_time)
 
-        start_time = time.time()
+        # print("----------BVH----------")
 
-        mesh_triangles[0:10]
+        # mesh_triangles[0:10]
         # print("trial triangles: ", trial_triangles)
         # print("trial triangles len: ", len(trial_triangles))
 
-        bvh_root = aabb.construct_bvh(mesh_triangles)
-        print(len(bvh_root.bbox.triangles))
+        if self.is_first_interaction() is True:
+            print("----------BVH Construction----------")
+            # aabb.setup_bvh(mesh_triangles)
+            construct_start_time = time.time()
+            self.bvh_root = aabb.construct_bvh(mesh_triangles[:20000])
+            construct_end_time = time.time()
+            print(
+                "BVH construction time: ",
+                construct_end_time - construct_start_time,
+            )
+            print("BVH root: ", self.bvh_root)
+
+        # aabb.print_bounding_boxes(bvh_node=self.bvh_root)
+
+        # traverse_start_time = time.time()
+        bvh_intersection_index, bvh_intersection = aabb.traverse_bvh(
+            aabb, start_position, ray_direction, self.bvh_root
+        )
+
+        if bvh_intersection_index is None:
+            return None, None
+
+        # traverse_end_time = time.time()
+        # elapsed_time = traverse_end_time - traverse_start_time
+
+        # print("Elsapsed traversal time: ", elapsed_time)
+
+        # print("Nearest interaction with BVH: ", nearest_intersection)
+
+        # print("Total triangle calls: ", aabb.totalTriangleCalls)
+        # aabb.totalTriangleCalls = 0
+
+        triangle_vertex_indices = self._view_faces[bvh_intersection_index]
+        triangle_vertices = self._data_view[triangle_vertex_indices]
+        print("BVH triangle_vertex_indices value: ", triangle_vertex_indices)
+        print("BVH triangle_vertices value: ", triangle_vertices)
+        print("BVH mesh_triangle[0] value: ", mesh_triangles[0])
+
+        barycentric_coordinates = calculate_barycentric_coordinates(
+            bvh_intersection, triangle_vertices
+        )
+        vertex_values = self._view_vertex_values[triangle_vertex_indices]
+        intersection_value = (barycentric_coordinates * vertex_values).sum()
+        # print("BVH intersection value: ", bvh_intersection)
+        print("BVH intersection index: ", bvh_intersection_index)
 
         # aabb.print_bounding_boxes(bvh_root)
 
         end_time = time.time()
+        print("Total get_value execution time: ", end_time - start_time)
 
-        elapsed_time = end_time - start_time
-        print("Elsapsed time: ", elapsed_time)
-
-        return intersection_value, intersection_index
+        return intersection_value, bvh_intersection_index

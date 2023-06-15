@@ -1,4 +1,8 @@
+import math
+
 import numpy as np
+
+from napari.utils.geometry import find_nearest_triangle_intersection
 
 
 class BVHNode:
@@ -15,6 +19,25 @@ class BoundingBox:
         self.triangles = triangles
 
 
+class Triangles:
+    def _init_(self, triangle, index):
+        self.triangles = triangles
+        self.index = index
+
+
+max_tree_height = 5
+min_primitives_per_node = 1024
+total_len = 1
+
+
+def setup_bvh(triangles):
+    total_len = len(triangles)
+    min_primitives_per_node = math.ceil(
+        total_len / (math.pow(2, max_tree_height))
+    )
+    print("min_primitives_per_node: ", min_primitives_per_node)
+
+
 def construct_bvh(triangles):
     if len(triangles) == 0:
         return None
@@ -24,16 +47,17 @@ def construct_bvh(triangles):
         np.min(all_vertices, axis=0), np.max(all_vertices, axis=0), triangles
     )
 
-    np.argmax(bounding_box.max_coords - bounding_box.min_coords)
-    # TODO: Should be optimized to use SAH partitioning technique.
-    # Tradeoff - might take longer time to build the tree but possibly faster querying when checking for intersection.
-    split_axis = 0
-    sorted_triangles = sorted(
-        triangles, key=lambda triangle: bounding_box.min_coords[split_axis]
+    # print("diff in  coords: ", bounding_box.max_coords - bounding_box.min_coords)
+    split_axis = np.argmax(bounding_box.max_coords - bounding_box.min_coords)
+    # # TODO: Should be optimized to use SAH partitioning technique.
+    # # Tradeoff - might take longer time to build the tree but possibly faster querying when checking for intersection.
+    # split_axis = 0
+    sorted_triangles = np.array(
+        sorted(triangles, key=lambda triangle: triangle[:, split_axis].mean())
     )
-    sorted_triangles = triangles
+    # sorted_triangles = triangles
 
-    if len(sorted_triangles) <= 1024:
+    if len(sorted_triangles) <= min_primitives_per_node:
         return BVHNode(None, None, bounding_box)
 
     split_idx = len(sorted_triangles) // 2
@@ -49,11 +73,14 @@ def construct_bvh(triangles):
 # Print the bounding boxes and triangle indices
 def print_bounding_boxes(bvh_node: BVHNode, depth=0):
     indent = "  " * depth
-    bounding_box: BoundingBox = bvh_node.bbox
-    print(
-        f"{indent}Bounding Box: {bounding_box.min_coords} - {bounding_box.max_coords}"
-    )
-    print(f"{indent}Triangle Indices: {bounding_box.triangles}")
+    print("Depth: ", depth)
+    if bvh_node is not None:
+        bounding_box: BoundingBox = bvh_node.bbox
+
+    # print(
+    #     f"{indent}Bounding Box: {bounding_box.min_coords} - {bounding_box.max_coords}"
+    # )
+    print(f"{indent}Triangle Indices: {len(bounding_box.triangles)}")
 
     if bvh_node.left is None and bvh_node.right is None:
         print(f"{indent}Leaf Node")
@@ -61,6 +88,68 @@ def print_bounding_boxes(bvh_node: BVHNode, depth=0):
         print(f"{indent}Internal Node")
         print_bounding_boxes(bvh_node.left, depth + 1)
         print_bounding_boxes(bvh_node.right, depth + 1)
+
+
+def traverse_bvh(self, ray_origin, ray_direction, node):
+    if node is None:
+        return None, None
+
+    if ray_box_intersection(ray_origin, ray_direction, node.bbox):
+        if node.left is None and node.right is None:
+            (
+                intersection_index,
+                intersection,
+            ) = find_nearest_triangle_intersection(
+                ray_position=ray_origin,
+                ray_direction=ray_direction,
+                triangles=np.array(node.bbox.triangles),
+            )
+            if intersection_index is None:
+                return None, None
+
+            return intersection_index, intersection
+
+        left_intersection_index, left_intersection = traverse_bvh(
+            self, ray_origin, ray_direction, node.left
+        )
+        right_intersection_index, right_intersection = traverse_bvh(
+            self, ray_origin, ray_direction, node.right
+        )
+
+        if left_intersection is not None and right_intersection is not None:
+            left_distance = np.linalg.norm(left_intersection - ray_origin)
+            right_distance = np.linalg.norm(right_intersection - ray_origin)
+            if left_distance < right_distance:
+                return left_intersection_index, left_intersection
+
+            return right_intersection_index, right_intersection
+        if left_intersection is not None:
+            return left_intersection_index, left_intersection
+
+        return right_intersection_index, right_intersection
+
+    return None, None
+
+
+def ray_box_intersection(ray_origin, ray_direction, bounding_box):
+    tentryx = (bounding_box.min_coords[0] - ray_origin[0]) / ray_direction[0]
+    texitx = (bounding_box.max_coords[0] - ray_origin[0]) / ray_direction[0]
+
+    if tentryx > texitx:
+        tentryx, texitx = texitx, tentryx
+
+    tentryy = (bounding_box.min_coords[1] - ray_origin[1]) / ray_direction[1]
+    texity = (bounding_box.max_coords[1] - ray_origin[1]) / ray_direction[1]
+
+    if tentryy > texity:
+        tentryy, texity = texity, tentryy
+
+    tentry = max(tentryx, tentryy)
+    texit = min(texitx, texity)
+    if tentry <= texit:
+        return True
+
+    return False
 
 
 # Sample triangle
