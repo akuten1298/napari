@@ -20,7 +20,6 @@ from napari.utils import aabb
 from napari.utils.colormaps import AVAILABLE_COLORMAPS
 from napari.utils.events import Event
 from napari.utils.events.event_utils import connect_no_arg
-from napari.utils.geometry import find_nearest_triangle_intersection
 from napari.utils.translations import trans
 
 
@@ -697,12 +696,12 @@ class Surface(IntensityVisualizationMixin, Layer):
         mesh_triangles = self._data_view[self._view_faces]
 
         # get the triangles intersection
-        intersection_index, intersection = find_nearest_triangle_intersection(
-            ray_position=start_position,
-            ray_direction=ray_direction,
-            triangles=mesh_triangles,
-        )
-        print("Old intersection index: ", intersection_index)
+        # intersection_index, intersection = find_nearest_triangle_intersection(
+        #     ray_position=start_position,
+        #     ray_direction=ray_direction,
+        #     triangles=mesh_triangles,
+        # )
+        # print("Old intersection index: ", intersection_index)
         # if intersection_index is None:
         #     return None, None
 
@@ -743,7 +742,7 @@ class Surface(IntensityVisualizationMixin, Layer):
             print("----------BVH Construction----------")
             # aabb.setup_bvh(mesh_triangles)
             construct_start_time = time.time()
-            self.bvh_root = aabb.construct_bvh(mesh_triangles[:20000])
+            self.bvh_root = aabb.construct_bvh(mesh_triangles)
             construct_end_time = time.time()
             print(
                 "BVH construction time: ",
