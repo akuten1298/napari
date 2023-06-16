@@ -76,6 +76,24 @@ def construct_bvh(triangles):
     # )
     # sorted_triangles = triangles;
 
+    # bucket_boundaries = create_buckets(
+    #     bounding_box.min_coords[0], bounding_box.max_coords[0]
+    # )
+    # store = [[] * 10 for _ in range(10)]
+
+    # mean_x = np.mean(triangles[:, :, 0], axis=1)  # Calculate mean of x-coordinates outside the loop
+
+    # for triangle, mean in zip(triangles, mean_x):
+    #     bucket_index = np.digitize(mean, bucket_boundaries)
+    #     store[bucket_index - 1].extend([triangle])
+
+    # # for triangle in triangles:
+    # #     bucket_index = np.digitize(triangle[:, 0].mean(), bucket_boundaries)
+    # #     store[bucket_index - 1].append(triangle)
+    #     # print("bucket index for '" + str(triangle[:, 0].mean()) + "' :", bucket_index)
+
+    # prefix_sum = np.cumsum([len(bucket) for bucket in store])
+
     bucket_boundaries = create_buckets(
         bounding_box.min_coords[0], bounding_box.max_coords[0]
     )

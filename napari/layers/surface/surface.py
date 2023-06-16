@@ -739,6 +739,9 @@ class Surface(IntensityVisualizationMixin, Layer):
         # print("trial triangles len: ", len(trial_triangles))
 
         if self.is_first_interaction() is True:
+            # pr = cProfile.Profile()
+            # pr.enable()
+
             print("----------BVH Construction----------")
             # aabb.setup_bvh(mesh_triangles)
             construct_start_time = time.time()
@@ -760,6 +763,13 @@ class Surface(IntensityVisualizationMixin, Layer):
                 construct_end_time - construct_start_time,
             )
             print("BVH root: ", self.bvh_root)
+
+            # pr.disable()
+            # s = io.StringIO()
+            # sortby = SortKey.CUMULATIVE
+            # ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
+            # ps.print_stats()
+            # print(s.getvalue())
 
         # aabb.print_bounding_boxes(bvh_node=self.bvh_root)
 
