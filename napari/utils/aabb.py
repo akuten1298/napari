@@ -1,3 +1,4 @@
+import bisect
 import math
 
 import numpy as np
@@ -28,6 +29,7 @@ class Triangles:
 max_tree_height = 5
 min_primitives_per_node = 1024
 total_len = 1
+bin_size = 10
 
 
 def setup_bvh(triangles):
@@ -42,32 +44,88 @@ def construct_bvh(triangles):
     if len(triangles) == 0:
         return None
 
-    all_vertices = np.concatenate(triangles)
+    # print("triangle size: ", len(triangles))
+
     bounding_box = BoundingBox(
-        np.min(all_vertices, axis=0), np.max(all_vertices, axis=0), triangles
+        np.min(triangles, axis=(0, 1)),
+        np.max(triangles, axis=(0, 1)),
+        triangles,
     )
 
-    # print("diff in  coords: ", bounding_box.max_coords - bounding_box.min_coords)
-    split_axis = np.argmax(bounding_box.max_coords - bounding_box.min_coords)
-    # # TODO: Should be optimized to use SAH partitioning technique.
-    # # Tradeoff - might take longer time to build the tree but possibly faster querying when checking for intersection.
-    # split_axis = 0
-    sorted_triangles = np.array(
-        sorted(triangles, key=lambda triangle: triangle[:, split_axis].mean())
-    )
-    # sorted_triangles = triangles
-
-    if len(sorted_triangles) <= min_primitives_per_node:
+    if len(triangles) <= min_primitives_per_node:
         return BVHNode(None, None, bounding_box)
 
-    split_idx = len(sorted_triangles) // 2
-    left_triangles = sorted_triangles[:split_idx]
-    right_triangles = sorted_triangles[split_idx:]
+    # mincost = np.inf
+    # minaxis = -1
+    # minsplit = -1
+    # centroids = np.mean(triangles, axis=1)
+    # print("centroids: ", len(centroids))
 
-    left_node = construct_bvh(left_triangles)
-    right_node = construct_bvh(right_triangles)
+    # for axis in range(3):
+    #     ## sort triangles with respect centroids
+    #     sortedtris = triangles[np.argsort(centroids[:, axis])]
+    #     print("sorted tris: ", sortedtris[:5])
+
+    # print("diff in  coords: ", bounding_box.max_coords - bounding_box.min_coords)
+    # split_axis = np.argmax(bounding_box.max_coords - bounding_box.min_coords)
+
+    # print("testing: ", bounding_box.max_coords[split_axis])
+    # split_axis = 0
+    # sorted_triangles = np.array(
+    #     sorted(triangles, key=lambda triangle: triangle[:, split_axis].mean())
+    # )
+    # sorted_triangles = triangles;
+
+    bucket_boundaries = create_buckets(
+        bounding_box.min_coords[0], bounding_box.max_coords[0]
+    )
+    store = [[] * 10 for _ in range(10)]
+    for triangle in triangles:
+        bucket_index = np.digitize(triangle[:, 0].mean(), bucket_boundaries)
+        store[bucket_index - 1].append(triangle)
+        # print("bucket index for '" + str(triangle[:, 0].mean()) + "' :", bucket_index)
+
+    prefix_sum = [0] * 10
+    prefix_sum[0] = len(store[0])
+
+    for i in range(1, len(store)):
+        prefix_sum[i] = prefix_sum[i - 1] + len(store[i])
+
+    # for i in range(0, 10):
+    #     print(prefix_sum[i])
+
+    # print("bucket gaps between '" + str(bounding_box.min_coords[0]) + "' and '" + str(bounding_box.max_coords[0]) + "' ", create_buckets(bounding_box.min_coords[0], bounding_box.max_coords[0]))
+
+    lower_bound_index = bisect.bisect_left(prefix_sum, len(triangles) / 2)
+    # print(lower_bound_index)
+
+    left_array = triangles[: prefix_sum[lower_bound_index]]
+
+    if len(triangles) == len(left_array):
+        return BVHNode(None, None, bounding_box)
+
+    left_node = construct_bvh(left_array)
+    right_array = triangles[prefix_sum[lower_bound_index] :]
+    right_node = construct_bvh(right_array)
+
+    # print("left array: ", left_array[len(left_array)-1])
+    # print("right array: ", right_array[0])
+
+    # split_idx = len(sorted_triangles) // 2
+    # left_triangles = sorted_triangles[:split_idx]
+    # right_triangles = sorted_triangles[split_idx:]
 
     return BVHNode(left_node, right_node, bounding_box)
+
+
+def create_buckets(xmin, xmax):
+    # Calculate the bucket size based on the range and the number of buckets
+    (xmax - xmin) / 10
+
+    # Create an array of bucket boundaries
+    bucket_boundaries = np.linspace(xmin, xmax, num=11)
+
+    return bucket_boundaries
 
 
 # Print the bounding boxes and triangle indices

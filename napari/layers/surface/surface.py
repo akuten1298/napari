@@ -20,7 +20,6 @@ from napari.utils import aabb
 from napari.utils.colormaps import AVAILABLE_COLORMAPS
 from napari.utils.events import Event
 from napari.utils.events.event_utils import connect_no_arg
-from napari.utils.geometry import find_nearest_triangle_intersection
 from napari.utils.translations import trans
 
 
@@ -696,13 +695,13 @@ class Surface(IntensityVisualizationMixin, Layer):
         # get the mesh triangles
         mesh_triangles = self._data_view[self._view_faces]
 
-        # get the triangles intersection
-        intersection_index, intersection = find_nearest_triangle_intersection(
-            ray_position=start_position,
-            ray_direction=ray_direction,
-            triangles=mesh_triangles,
-        )
-        print("Old intersection index: ", intersection_index)
+        # # get the triangles intersection
+        # intersection_index, intersection = find_nearest_triangle_intersection(
+        #     ray_position=start_position,
+        #     ray_direction=ray_direction,
+        #     triangles=mesh_triangles,
+        # )
+        # print("Old intersection index: ", intersection_index)
         # if intersection_index is None:
         #     return None, None
 
@@ -743,7 +742,18 @@ class Surface(IntensityVisualizationMixin, Layer):
             print("----------BVH Construction----------")
             # aabb.setup_bvh(mesh_triangles)
             construct_start_time = time.time()
-            self.bvh_root = aabb.construct_bvh(mesh_triangles[:20000])
+
+            # single_sort_start_time = time.time()
+
+            # split_axis = 0
+            # sorted_triangles = np.array(
+            #     sorted(mesh_triangles, key=lambda triangle: triangle[:, split_axis].mean())
+            # )
+
+            # single_sort_end_time = time.time()
+            # print("Single sort time: ", single_sort_end_time - single_sort_start_time)
+
+            self.bvh_root = aabb.construct_bvh(mesh_triangles)
             construct_end_time = time.time()
             print(
                 "BVH construction time: ",
@@ -754,6 +764,7 @@ class Surface(IntensityVisualizationMixin, Layer):
         # aabb.print_bounding_boxes(bvh_node=self.bvh_root)
 
         # traverse_start_time = time.time()
+
         bvh_intersection_index, bvh_intersection = aabb.traverse_bvh(
             aabb, start_position, ray_direction, self.bvh_root
         )
@@ -775,7 +786,7 @@ class Surface(IntensityVisualizationMixin, Layer):
         triangle_vertices = self._data_view[triangle_vertex_indices]
         print("BVH triangle_vertex_indices value: ", triangle_vertex_indices)
         print("BVH triangle_vertices value: ", triangle_vertices)
-        print("BVH mesh_triangle[0] value: ", mesh_triangles[0])
+        # print("BVH mesh_triangle[0] value: ", mesh_triangles[0])
 
         barycentric_coordinates = calculate_barycentric_coordinates(
             bvh_intersection, triangle_vertices
