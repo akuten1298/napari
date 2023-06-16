@@ -42,20 +42,18 @@ def construct_bvh(triangles):
     if len(triangles) == 0:
         return None
 
-    all_vertices = np.concatenate(triangles)
     bounding_box = BoundingBox(
-        np.min(all_vertices, axis=0), np.max(all_vertices, axis=0), triangles
+        np.min(triangles, axis=(0, 1)),
+        np.max(triangles, axis=(0, 1)),
+        triangles,
     )
 
     # print("diff in  coords: ", bounding_box.max_coords - bounding_box.min_coords)
     split_axis = np.argmax(bounding_box.max_coords - bounding_box.min_coords)
     # # TODO: Should be optimized to use SAH partitioning technique.
     # # Tradeoff - might take longer time to build the tree but possibly faster querying when checking for intersection.
-    # split_axis = 0
-    sorted_triangles = np.array(
-        sorted(triangles, key=lambda triangle: triangle[:, split_axis].mean())
-    )
-    # sorted_triangles = triangles
+    sort_indices = np.argsort(triangles[:, :, split_axis].mean(axis=-1))
+    sorted_triangles = triangles[sort_indices]
 
     if len(sorted_triangles) <= min_primitives_per_node:
         return BVHNode(None, None, bounding_box)
