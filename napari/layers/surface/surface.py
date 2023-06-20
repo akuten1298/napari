@@ -1,5 +1,9 @@
+import cProfile
+import io
+import pstats
 import time
 import warnings
+from pstats import SortKey
 from typing import Any, List, Optional, Tuple, Union
 
 import numpy as np
@@ -739,8 +743,8 @@ class Surface(IntensityVisualizationMixin, Layer):
         # print("trial triangles len: ", len(trial_triangles))
 
         if self.is_first_interaction() is True:
-            # pr = cProfile.Profile()
-            # pr.enable()
+            pr = cProfile.Profile()
+            pr.enable()
 
             print("----------BVH Construction----------")
             # aabb.setup_bvh(mesh_triangles)
@@ -764,12 +768,15 @@ class Surface(IntensityVisualizationMixin, Layer):
             )
             print("BVH root: ", self.bvh_root)
 
-            # pr.disable()
-            # s = io.StringIO()
-            # sortby = SortKey.CUMULATIVE
-            # ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
-            # ps.print_stats()
-            # print(s.getvalue())
+            pr.disable()
+            s = io.StringIO()
+            sortby = SortKey.CUMULATIVE
+            ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
+            ps.print_stats()
+            print(s.getvalue())
+            print(
+                "------------------------------------------------------------"
+            )
 
         # aabb.print_bounding_boxes(bvh_node=self.bvh_root)
 

@@ -41,6 +41,9 @@ def setup_bvh(triangles):
 
 
 def construct_bvh(triangles):
+    # pr = cProfile.Profile()
+    # pr.enable()
+
     if len(triangles) == 0:
         return None
 
@@ -97,9 +100,24 @@ def construct_bvh(triangles):
     bucket_boundaries = create_buckets(
         bounding_box.min_coords[0], bounding_box.max_coords[0]
     )
+    # print("bucket boundaries: ", bucket_boundaries)
     store = [[] * 10 for _ in range(10)]
     for triangle in triangles:
-        bucket_index = np.digitize(triangle[:, 0].mean(), bucket_boundaries)
+        mean_val = (triangle[0][0] + triangle[1][0] + triangle[2][0]) / (3.0)
+        # print("mean_val: ", mean_val, "means: ", means)
+        bucket_index = len(bucket_boundaries)
+        for index in range(len(bucket_boundaries)):
+            if bucket_boundaries[index] - mean_val > 0.0:
+                bucket_index = index
+                break
+        # bucket_index = np.searchsorted(bucket_boundaries, mean_val, "left")
+
+        # if bucket_index != linear_index:
+        #     print("fire fire fire fire")
+
+        # print("linear_index: ", linear_index)
+        # print("bucket_index: ", bucket_index)
+
         store[bucket_index - 1].append(triangle)
         # print("bucket index for '" + str(triangle[:, 0].mean()) + "' :", bucket_index)
 
@@ -132,6 +150,14 @@ def construct_bvh(triangles):
     # split_idx = len(sorted_triangles) // 2
     # left_triangles = sorted_triangles[:split_idx]
     # right_triangles = sorted_triangles[split_idx:]
+
+    # pr.disable()
+    # s = io.StringIO()
+    # sortby = SortKey.CUMULATIVE
+    # ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
+    # ps.print_stats()
+    # print(s.getvalue())
+    # print("------------------------------------------------------------")
 
     return BVHNode(left_node, right_node, bounding_box)
 
