@@ -30,6 +30,7 @@ max_tree_height = 5
 min_primitives_per_node = 1024
 total_len = 1
 bin_size = 10
+# maxDiff = -1
 
 
 def setup_bvh(triangles):
@@ -84,8 +85,6 @@ def construct_bvh(triangles):
     # )
     # store = [[] * 10 for _ in range(10)]
 
-    # mean_x = np.mean(triangles[:, :, 0], axis=1)  # Calculate mean of x-coordinates outside the loop
-
     # for triangle, mean in zip(triangles, mean_x):
     #     bucket_index = np.digitize(mean, bucket_boundaries)
     #     store[bucket_index - 1].extend([triangle])
@@ -100,26 +99,37 @@ def construct_bvh(triangles):
     bucket_boundaries = create_buckets(
         bounding_box.min_coords[0], bounding_box.max_coords[0]
     )
-    # print("bucket boundaries: ", bucket_boundaries)
     store = [[] * 10 for _ in range(10)]
-    for triangle in triangles:
-        mean_val = (triangle[0][0] + triangle[1][0] + triangle[2][0]) / (3.0)
-        # print("mean_val: ", mean_val, "means: ", means)
-        bucket_index = len(bucket_boundaries)
-        for index in range(len(bucket_boundaries)):
-            if bucket_boundaries[index] - mean_val > 0.0:
-                bucket_index = index
-                break
-        # bucket_index = np.searchsorted(bucket_boundaries, mean_val, "left")
 
-        # if bucket_index != linear_index:
-        #     print("fire fire fire fire")
+    mean_x = np.mean(
+        triangles[:, :, 0], axis=1
+    )  # Calculate mean of x-coordinates outside the loop
+    # print("total mean: ", mean_x)
 
-        # print("linear_index: ", linear_index)
-        # print("bucket_index: ", bucket_index)
+    indices = np.digitize(mean_x, bucket_boundaries)
 
-        store[bucket_index - 1].append(triangle)
-        # print("bucket index for '" + str(triangle[:, 0].mean()) + "' :", bucket_index)
+    for index in range(len(triangles)):
+        store[indices[index] - 1].append(triangles[index])
+
+    # print("bucket boundaries: ", bucket_boundaries)
+    # for triangle in triangles:
+    #     mean_val = (triangle[0][0] + triangle[1][0] + triangle[2][0]) / (3.0)
+    #     # print("mean_val: ", mean_val, "means: ", means)
+    #     bucket_index = len(bucket_boundaries)
+    #     for index in range(len(bucket_boundaries)):
+    #         if bucket_boundaries[index] - mean_val > 0.0:
+    #             bucket_index = index
+    #             break
+    #     # bucket_index = np.searchsorted(bucket_boundaries, mean_val, "left")
+
+    #     # if bucket_index != linear_index:
+    #     #     print("fire fire fire fire")
+
+    #     # print("linear_index: ", linear_index)
+    #     # print("bucket_index: ", bucket_index)
+
+    #     store[bucket_index - 1].append(triangle)
+    #     # print("bucket index for '" + str(triangle[:, 0].mean()) + "' :", bucket_index)
 
     prefix_sum = [0] * 10
     prefix_sum[0] = len(store[0])
@@ -132,17 +142,43 @@ def construct_bvh(triangles):
 
     # print("bucket gaps between '" + str(bounding_box.min_coords[0]) + "' and '" + str(bounding_box.max_coords[0]) + "' ", create_buckets(bounding_box.min_coords[0], bounding_box.max_coords[0]))
 
+    # print("trianglee: ", len(triangles))
+
     lower_bound_index = bisect.bisect_left(prefix_sum, len(triangles) / 2)
     # print(lower_bound_index)
 
-    left_array = triangles[: prefix_sum[lower_bound_index]]
+    # left_array = triangles[: prefix_sum[lower_bound_index]]
+    # print("lower_bound_index: ", lower_bound_index)
+    left_subset = store[:lower_bound_index]
 
-    if len(triangles) == len(left_array):
-        return BVHNode(None, None, bounding_box)
+    non_empty_left_subset = [arr for arr in left_subset if len(arr) > 0]
+    # print("left subset: ", len(left_subset))
+    # print("non empty left subset: ", len(non_empty_left_subset))
 
-    left_node = construct_bvh(left_array)
-    right_array = triangles[prefix_sum[lower_bound_index] :]
-    right_node = construct_bvh(right_array)
+    left_node = None
+    if len(non_empty_left_subset) > 0:
+        left_array = np.concatenate(non_empty_left_subset)
+        if len(triangles) == len(left_array):
+            return BVHNode(None, None, bounding_box)
+        # print("left array: ", len(left_array))
+        left_node = construct_bvh(left_array)
+
+    # right_array = triangles[prefix_sum[lower_bound_index] :]
+    right_subset = store[lower_bound_index:]
+    # print("right subset: ", len(right_subset))
+
+    non_empty_right_subset = [arr for arr in right_subset if len(arr) > 0]
+
+    right_node = None
+    if len(non_empty_right_subset) > 0:
+        right_array = np.concatenate(non_empty_right_subset)
+        if len(triangles) == len(right_array):
+            return BVHNode(None, None, bounding_box)
+        # print("right array: ", len(right_array))
+        right_node = construct_bvh(right_array)
+
+    # maxDiff = max(maxDiff, abs(len(left_array) - len(right_array)))
+    # print("diff :", len(left_array) - len(right_array), "   left size: ", len(left_array), "    right size: ", len(right_array))
 
     # print("left array: ", left_array[len(left_array)-1])
     # print("right array: ", right_array[0])

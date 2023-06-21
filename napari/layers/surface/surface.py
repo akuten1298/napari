@@ -761,6 +761,7 @@ class Surface(IntensityVisualizationMixin, Layer):
             # print("Single sort time: ", single_sort_end_time - single_sort_start_time)
 
             self.bvh_root = aabb.construct_bvh(mesh_triangles)
+            # print("maxdiff: ", aabb.maxDiff)
             construct_end_time = time.time()
             print(
                 "BVH construction time: ",
