@@ -23,6 +23,12 @@ from napari.utils.events.event_utils import connect_no_arg
 from napari.utils.translations import trans
 
 
+class Triangle:
+    def __init__(self, triangle, index):
+        self.triangle = triangle
+        self.index = index
+
+
 # Mixin must come before Layer
 class Surface(IntensityVisualizationMixin, Layer):
     """
@@ -696,7 +702,7 @@ class Surface(IntensityVisualizationMixin, Layer):
         mesh_triangles = self._data_view[self._view_faces]
 
         # get the triangles intersection
-        # intersection_index, intersection = find_nearest_triangle_intersection(
+        # intersection_index, intersection, nearest_triangle = find_nearest_triangle_intersection(
         #     ray_position=start_position,
         #     ray_direction=ray_direction,
         #     triangles=mesh_triangles,
@@ -739,6 +745,22 @@ class Surface(IntensityVisualizationMixin, Layer):
         # print("trial triangles len: ", len(trial_triangles))
 
         if self.is_first_interaction() is True:
+            # index_triangles = [ np.append(mesh_triangles[index], [np.array([index, index, index])], axis=0) for index in range(10)]
+
+            # print(mesh_triangles[index].append([index]))
+            # index_triangles = [] * len(mesh_triangles)
+            index_triangles = [
+                Triangle(mesh_triangles[index], index) for index in range(10)
+            ]
+
+            # print([np.expand_dims(np.array([0]), axis=0)])
+            # index_triangles = [ np.vstack((mesh_triangles[index], np.tile(np.array([index]), (mesh_triangles[index].shape[0], 1)))) for index in range(10)]
+            # index_triangles = [ np.append([mesh_triangles[index]], [np.expand_dims(np.array([index]), axis=0)], axis=0) for index in range(10)]
+            # print([np.array([0])])
+
+            print("mesh_triangles: ", mesh_triangles[:2])
+            print("index_triangles: ", index_triangles[:2])
+
             print("----------BVH Construction----------")
             # aabb.setup_bvh(mesh_triangles)
             construct_start_time = time.time()
@@ -753,12 +775,21 @@ class Surface(IntensityVisualizationMixin, Layer):
         # aabb.print_bounding_boxes(bvh_node=self.bvh_root)
 
         # traverse_start_time = time.time()
-        bvh_intersection_index, bvh_intersection = aabb.traverse_bvh(
+        (
+            bvh_intersection_index,
+            bvh_intersection,
+            intersected_triangle,
+        ) = aabb.traverse_bvh(
             aabb, start_position, ray_direction, self.bvh_root
         )
 
         if bvh_intersection_index is None:
             return None, None
+
+        indices = np.where(
+            (mesh_triangles == intersected_triangle).all(axis=(1, 2))
+        )
+        intersected_index = indices[0][0]
 
         # traverse_end_time = time.time()
         # elapsed_time = traverse_end_time - traverse_start_time
@@ -770,23 +801,25 @@ class Surface(IntensityVisualizationMixin, Layer):
         # print("Total triangle calls: ", aabb.totalTriangleCalls)
         # aabb.totalTriangleCalls = 0
 
-        triangle_vertex_indices = self._view_faces[bvh_intersection_index]
-        triangle_vertices = self._data_view[triangle_vertex_indices]
+        triangle_vertex_indices = self._view_faces[intersected_index]
+        # triangle_vertices = self._data_view[triangle_vertex_indices]
         print("BVH triangle_vertex_indices value: ", triangle_vertex_indices)
-        print("BVH triangle_vertices value: ", triangle_vertices)
-        print("BVH mesh_triangle[0] value: ", mesh_triangles[0])
+        # print("BVH triangle_vertices value: ", triangle_vertices)
+        # print("BVH mesh_triangle[0] value: ", mesh_triangles[0])
 
         barycentric_coordinates = calculate_barycentric_coordinates(
-            bvh_intersection, triangle_vertices
+            bvh_intersection, intersected_triangle
         )
         vertex_values = self._view_vertex_values[triangle_vertex_indices]
+        # print("vertex values: ", vertex_values)
+        # print("intersected triangle: ", intersected_triangle)
         intersection_value = (barycentric_coordinates * vertex_values).sum()
         # print("BVH intersection value: ", bvh_intersection)
-        print("BVH intersection index: ", bvh_intersection_index)
+        # print("BVH intersection index: ", bvh_intersection_index)
 
         # aabb.print_bounding_boxes(bvh_root)
 
         end_time = time.time()
         print("Total get_value execution time: ", end_time - start_time)
 
-        return intersection_value, bvh_intersection_index
+        return intersection_value, intersected_index

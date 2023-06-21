@@ -19,12 +19,6 @@ class BoundingBox:
         self.triangles = triangles
 
 
-class Triangles:
-    def _init_(self, triangle, index):
-        self.triangles = triangles
-        self.index = index
-
-
 max_tree_height = 5
 min_primitives_per_node = 1024
 total_len = 1
@@ -43,6 +37,7 @@ def construct_bvh(triangles):
         return None
 
     np.concatenate(triangles)
+    # print("trianglesssss: ", triangles)
     bounding_box = BoundingBox(
         np.min(triangles, axis=(0, 1)),
         np.max(triangles, axis=(0, 1)),
@@ -93,43 +88,68 @@ def print_bounding_boxes(bvh_node: BVHNode, depth=0):
 
 def traverse_bvh(self, ray_origin, ray_direction, node):
     if node is None:
-        return None, None
+        return None, None, None
 
     if ray_box_intersection(ray_origin, ray_direction, node.bbox):
         if node.left is None and node.right is None:
             (
                 intersection_index,
                 intersection,
+                closest_intersected_triangle_index,
             ) = find_nearest_triangle_intersection(
                 ray_position=ray_origin,
                 ray_direction=ray_direction,
                 triangles=np.array(node.bbox.triangles),
             )
             if intersection_index is None:
-                return None, None
+                return None, None, None
 
-            return intersection_index, intersection
+            return (
+                intersection_index,
+                intersection,
+                closest_intersected_triangle_index,
+            )
 
-        left_intersection_index, left_intersection = traverse_bvh(
-            self, ray_origin, ray_direction, node.left
-        )
-        right_intersection_index, right_intersection = traverse_bvh(
-            self, ray_origin, ray_direction, node.right
-        )
+        (
+            left_intersection_index,
+            left_intersection,
+            left_closest_intersected_triangle_index,
+        ) = traverse_bvh(self, ray_origin, ray_direction, node.left)
+        (
+            right_intersection_index,
+            right_intersection,
+            right_closest_intersected_triangle_index,
+        ) = traverse_bvh(self, ray_origin, ray_direction, node.right)
 
         if left_intersection is not None and right_intersection is not None:
             left_distance = np.linalg.norm(left_intersection - ray_origin)
             right_distance = np.linalg.norm(right_intersection - ray_origin)
             if left_distance < right_distance:
-                return left_intersection_index, left_intersection
+                return (
+                    left_intersection_index,
+                    left_intersection,
+                    left_closest_intersected_triangle_index,
+                )
 
-            return right_intersection_index, right_intersection
+            return (
+                right_intersection_index,
+                right_intersection,
+                right_closest_intersected_triangle_index,
+            )
         if left_intersection is not None:
-            return left_intersection_index, left_intersection
+            return (
+                left_intersection_index,
+                left_intersection,
+                left_closest_intersected_triangle_index,
+            )
 
-        return right_intersection_index, right_intersection
+        return (
+            right_intersection_index,
+            right_intersection,
+            right_closest_intersected_triangle_index,
+        )
 
-    return None, None
+    return None, None, None
 
 
 def ray_box_intersection(ray_origin, ray_direction, bounding_box):
