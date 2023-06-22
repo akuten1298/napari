@@ -20,7 +20,7 @@ class BoundingBox:
 
 
 max_tree_height = 5
-min_primitives_per_node = 1024
+min_primitives_per_node = 4096
 total_len = 1
 
 
@@ -32,11 +32,47 @@ def setup_bvh(triangles):
     print("min_primitives_per_node: ", min_primitives_per_node)
 
 
+def calculate_surface_area(box):
+    sides = box.max_coords - box.min_coords
+    return 2 * (
+        sides[0] * sides[1] + sides[1] * sides[2] + sides[2] * sides[0]
+    )
+
+
+def find_best_split(triangles):
+    min_cost = float('inf')
+    best_axis = 0
+    best_split = 0
+
+    for axis in range(3):
+        for i in range(1, len(triangles)):
+            left_box = BoundingBox(
+                np.min(triangles[:i], axis=(0, 1)),
+                np.max(triangles[:i], axis=(0, 1)),
+                triangles[:i],
+            )
+            right_box = BoundingBox(
+                np.min(triangles[i:], axis=(0, 1)),
+                np.max(triangles[i:], axis=(0, 1)),
+                triangles[i:],
+            )
+
+            left_cost = calculate_surface_area(left_box) * len(triangles[:i])
+            right_cost = calculate_surface_area(right_box) * len(triangles[i:])
+            total_cost = left_cost + right_cost
+
+            if total_cost < min_cost:
+                min_cost = total_cost
+                best_axis = axis
+                best_split = i
+
+    return best_axis, best_split
+
+
 def construct_bvh(triangles):
     if len(triangles) == 0:
         return None
 
-    np.concatenate(triangles)
     # print("trianglesssss: ", triangles)
     bounding_box = BoundingBox(
         np.min(triangles, axis=(0, 1)),
@@ -47,10 +83,23 @@ def construct_bvh(triangles):
     if len(triangles) <= min_primitives_per_node:
         return BVHNode(None, None, bounding_box)
 
+    # split_axis, split_idx = find_best_split(triangles)
+
+    # # sort_indices = np.argsort(triangles[:, :, split_axis].mean(axis=-1))
+    # # sorted_triangles = triangles[sort_indices]
+
+    # left_triangles = triangles[:split_idx]
+    # right_triangles = triangles[split_idx:]
+
+    # print("left size: ", len(left_triangles), " right size: ", len(right_triangles))
+
+    # left_node = construct_bvh(left_triangles)
+    # right_node = construct_bvh(right_triangles)
+
+    # return BVHNode(left_node, right_node, bounding_box)
+
     # print("diff in  coords: ", bounding_box.max_coords - bounding_box.min_coords)
     split_axis = np.argmax(bounding_box.max_coords - bounding_box.min_coords)
-    # # TODO: Should be optimized to use SAH partitioning technique.
-    # # Tradeoff - might take longer time to build the tree but possibly faster querying when checking for intersection.
     # split_axis = 0
     sort_indices = np.argsort(triangles[:, :, split_axis].mean(axis=-1))
     sorted_triangles = triangles[sort_indices]

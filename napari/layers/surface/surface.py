@@ -136,7 +136,8 @@ class Surface(IntensityVisualizationMixin, Layer):
         First interaction for loading bvh
     bvh_root: None
         Root of the bvh tree
-
+    total_execution_time: float
+        totak_execution_time
     Attributes
     ----------
     data : 3-tuple of array
@@ -179,7 +180,8 @@ class Surface(IntensityVisualizationMixin, Layer):
         First interaction for loading bvh
     bvh_root: None
         Root of the bvh tree
-
+    total_execution_time: float
+        total_execution_time
     Notes
     -----
     _data_view : (M, 2) or (M, 3) array
@@ -303,6 +305,11 @@ class Surface(IntensityVisualizationMixin, Layer):
 
         self.first_interaction = True
         self.bvh_root = None
+
+        self.total_execution_time = 0.00
+        self.number_of_executions = 0
+        self.min_execution_time = float('inf')
+        self.max_execution_time = float('-inf')
 
     def _calc_data_range(self, mode='data'):
         return calc_data_range(self.vertex_values)
@@ -749,17 +756,11 @@ class Surface(IntensityVisualizationMixin, Layer):
 
             # print(mesh_triangles[index].append([index]))
             # index_triangles = [] * len(mesh_triangles)
-            index_triangles = [
-                Triangle(mesh_triangles[index], index) for index in range(10)
-            ]
 
             # print([np.expand_dims(np.array([0]), axis=0)])
             # index_triangles = [ np.vstack((mesh_triangles[index], np.tile(np.array([index]), (mesh_triangles[index].shape[0], 1)))) for index in range(10)]
             # index_triangles = [ np.append([mesh_triangles[index]], [np.expand_dims(np.array([index]), axis=0)], axis=0) for index in range(10)]
             # print([np.array([0])])
-
-            print("mesh_triangles: ", mesh_triangles[:2])
-            print("index_triangles: ", index_triangles[:2])
 
             print("----------BVH Construction----------")
             # aabb.setup_bvh(mesh_triangles)
@@ -775,6 +776,9 @@ class Surface(IntensityVisualizationMixin, Layer):
         # aabb.print_bounding_boxes(bvh_node=self.bvh_root)
 
         # traverse_start_time = time.time()
+        # pr = cProfile.Profile()
+        # pr.enable()
+
         (
             bvh_intersection_index,
             bvh_intersection,
@@ -782,6 +786,13 @@ class Surface(IntensityVisualizationMixin, Layer):
         ) = aabb.traverse_bvh(
             aabb, start_position, ray_direction, self.bvh_root
         )
+
+        # pr.disable()
+        # s = io.StringIO()
+        # sortby = SortKey.CUMULATIVE
+        # ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
+        # ps.print_stats()
+        # print(s.getvalue())
 
         if bvh_intersection_index is None:
             return None, None
@@ -803,7 +814,6 @@ class Surface(IntensityVisualizationMixin, Layer):
 
         triangle_vertex_indices = self._view_faces[intersected_index]
         # triangle_vertices = self._data_view[triangle_vertex_indices]
-        print("BVH triangle_vertex_indices value: ", triangle_vertex_indices)
         # print("BVH triangle_vertices value: ", triangle_vertices)
         # print("BVH mesh_triangle[0] value: ", mesh_triangles[0])
 
@@ -820,6 +830,24 @@ class Surface(IntensityVisualizationMixin, Layer):
         # aabb.print_bounding_boxes(bvh_root)
 
         end_time = time.time()
-        print("Total get_value execution time: ", end_time - start_time)
+        elapsed_time = end_time - start_time
+
+        if self.is_first_interaction() is False:
+            self.total_execution_time += elapsed_time
+            self.number_of_executions += 1
+            self.min_execution_time = min(
+                self.min_execution_time, elapsed_time
+            )
+            self.max_execution_time = max(
+                self.max_execution_time, elapsed_time
+            )
+
+            print("Total get_value execution time: ", elapsed_time)
+            print(
+                "Average get_value execution time: ",
+                self.total_execution_time / self.number_of_executions,
+            )
+            print("Min get_value execution time: ", self.min_execution_time)
+            print("Max get_value execution time: ", self.max_execution_time)
 
         return intersection_value, intersected_index
