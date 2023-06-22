@@ -171,8 +171,6 @@ class Surface(IntensityVisualizationMixin, Layer):
         First interaction for loading bvh
     bvh_root: None
         Root of the bvh tree
-    total_execution_time: float
-        total_execution_time
     Notes
     -----
     _data_view : (M, 2) or (M, 3) array

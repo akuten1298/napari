@@ -134,6 +134,20 @@ def ray_box_intersection(ray_origin, ray_direction, bounding_box):
         tentry = max(tentry, tentryy)
         texit = min(texit, texity)
 
+    if ray_direction[2] != 0:
+        tentryz = (bounding_box.min_coords[2] - ray_origin[2]) / ray_direction[
+            2
+        ]
+        texitz = (bounding_box.max_coords[2] - ray_origin[2]) / ray_direction[
+            2
+        ]
+
+        if tentryz > texitz:
+            tentryz, texitz = texitz, tentryz
+
+        tentry = max(tentry, tentryz)
+        texit = min(texit, texitz)
+
     if tentry <= texit:
         return True
 
