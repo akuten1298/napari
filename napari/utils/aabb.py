@@ -1,5 +1,3 @@
-import math
-
 import numpy as np
 
 from napari.utils.geometry import find_nearest_triangle_intersection
@@ -19,61 +17,13 @@ class BoundingBox:
         self.triangles = triangles
 
 
-max_tree_height = 5
 min_primitives_per_node = 4096
-total_len = 1
-
-
-def setup_bvh(triangles):
-    total_len = len(triangles)
-    min_primitives_per_node = math.ceil(
-        total_len / (math.pow(2, max_tree_height))
-    )
-    print("min_primitives_per_node: ", min_primitives_per_node)
-
-
-def calculate_surface_area(box):
-    sides = box.max_coords - box.min_coords
-    return 2 * (
-        sides[0] * sides[1] + sides[1] * sides[2] + sides[2] * sides[0]
-    )
-
-
-def find_best_split(triangles):
-    min_cost = float('inf')
-    best_axis = 0
-    best_split = 0
-
-    for axis in range(3):
-        for i in range(1, len(triangles)):
-            left_box = BoundingBox(
-                np.min(triangles[:i], axis=(0, 1)),
-                np.max(triangles[:i], axis=(0, 1)),
-                triangles[:i],
-            )
-            right_box = BoundingBox(
-                np.min(triangles[i:], axis=(0, 1)),
-                np.max(triangles[i:], axis=(0, 1)),
-                triangles[i:],
-            )
-
-            left_cost = calculate_surface_area(left_box) * len(triangles[:i])
-            right_cost = calculate_surface_area(right_box) * len(triangles[i:])
-            total_cost = left_cost + right_cost
-
-            if total_cost < min_cost:
-                min_cost = total_cost
-                best_axis = axis
-                best_split = i
-
-    return best_axis, best_split
 
 
 def construct_bvh(triangles):
     if len(triangles) == 0:
         return None
 
-    # print("trianglesssss: ", triangles)
     bounding_box = BoundingBox(
         np.min(triangles, axis=(0, 1)),
         np.max(triangles, axis=(0, 1)),
@@ -83,27 +33,9 @@ def construct_bvh(triangles):
     if len(triangles) <= min_primitives_per_node:
         return BVHNode(None, None, bounding_box)
 
-    # split_axis, split_idx = find_best_split(triangles)
-
-    # # sort_indices = np.argsort(triangles[:, :, split_axis].mean(axis=-1))
-    # # sorted_triangles = triangles[sort_indices]
-
-    # left_triangles = triangles[:split_idx]
-    # right_triangles = triangles[split_idx:]
-
-    # print("left size: ", len(left_triangles), " right size: ", len(right_triangles))
-
-    # left_node = construct_bvh(left_triangles)
-    # right_node = construct_bvh(right_triangles)
-
-    # return BVHNode(left_node, right_node, bounding_box)
-
-    # print("diff in  coords: ", bounding_box.max_coords - bounding_box.min_coords)
     split_axis = np.argmax(bounding_box.max_coords - bounding_box.min_coords)
-    # split_axis = 0
     sort_indices = np.argsort(triangles[:, :, split_axis].mean(axis=-1))
     sorted_triangles = triangles[sort_indices]
-    # sorted_triangles = triangles
 
     split_idx = len(sorted_triangles) // 2
     left_triangles = sorted_triangles[:split_idx]
@@ -113,26 +45,6 @@ def construct_bvh(triangles):
     right_node = construct_bvh(right_triangles)
 
     return BVHNode(left_node, right_node, bounding_box)
-
-
-# Print the bounding boxes and triangle indices
-def print_bounding_boxes(bvh_node: BVHNode, depth=0):
-    indent = "  " * depth
-    print("Depth: ", depth)
-    if bvh_node is not None:
-        bounding_box: BoundingBox = bvh_node.bbox
-
-    # print(
-    #     f"{indent}Bounding Box: {bounding_box.min_coords} - {bounding_box.max_coords}"
-    # )
-    print(f"{indent}Triangle Indices: {len(bounding_box.triangles)}")
-
-    if bvh_node.left is None and bvh_node.right is None:
-        print(f"{indent}Leaf Node")
-    else:
-        print(f"{indent}Internal Node")
-        print_bounding_boxes(bvh_node.left, depth + 1)
-        print_bounding_boxes(bvh_node.right, depth + 1)
 
 
 def traverse_bvh(self, ray_origin, ray_direction, node):
@@ -220,17 +132,3 @@ def ray_box_intersection(ray_origin, ray_direction, bounding_box):
         return True
 
     return False
-
-
-# Sample triangle
-triangles = [
-    [(0, 0, 0), (1, 1, 1), (2, 2, 7)],
-    [(-1, 2, 2), (3, 3, 3), (4, 4, 4)],
-    [(1, 1, 1), (3, -5, 3), (8, 5, 5)],
-    [(0, 0, 0), (1000, 1000, 1000), (2000, 2000, 7000)],
-    [(-1000, 2000, 2000), (3000, 3000, 3000), (4000, 4000, 4000)],
-    [(1000, 1000, 1000), (3000, -5000, 3000), (8000, 5000, 5000)],
-]
-
-# bvh_root = construct_bvh(triangles)
-# print_bounding_boxes(bvh_root)
