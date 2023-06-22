@@ -17,7 +17,7 @@ class BoundingBox:
         self.triangles = triangles
 
 
-min_primitives_per_node = 4096
+min_primitives_per_node = 512
 
 
 def construct_bvh(triangles):
@@ -114,20 +114,26 @@ def traverse_bvh(self, ray_origin, ray_direction, node):
 
 
 def ray_box_intersection(ray_origin, ray_direction, bounding_box):
-    tentryx = (bounding_box.min_coords[0] - ray_origin[0]) / ray_direction[0]
-    texitx = (bounding_box.max_coords[0] - ray_origin[0]) / ray_direction[0]
+    tentry = (bounding_box.min_coords[0] - ray_origin[0]) / ray_direction[0]
+    texit = (bounding_box.max_coords[0] - ray_origin[0]) / ray_direction[0]
 
-    if tentryx > texitx:
-        tentryx, texitx = texitx, tentryx
+    if tentry > texit:
+        tentry, texit = texit, tentry
 
-    tentryy = (bounding_box.min_coords[1] - ray_origin[1]) / ray_direction[1]
-    texity = (bounding_box.max_coords[1] - ray_origin[1]) / ray_direction[1]
+    if ray_direction[1] != 0:
+        tentryy = (bounding_box.min_coords[1] - ray_origin[1]) / ray_direction[
+            1
+        ]
+        texity = (bounding_box.max_coords[1] - ray_origin[1]) / ray_direction[
+            1
+        ]
 
-    if tentryy > texity:
-        tentryy, texity = texity, tentryy
+        if tentryy > texity:
+            tentryy, texity = texity, tentryy
 
-    tentry = max(tentryx, tentryy)
-    texit = min(texitx, texity)
+        tentry = max(tentry, tentryy)
+        texit = min(texit, texity)
+
     if tentry <= texit:
         return True
 
