@@ -1,7 +1,7 @@
 import numpy as np
 from vispy.color import Colormap as VispyColormap
 from vispy.geometry import MeshData
-from vispy.visuals.filters import TextureFilter
+from vispy.visuals.filters import FacePickingFilter, TextureFilter
 
 from napari._vispy.layers.base import VispyBaseLayer
 from napari._vispy.visuals.surface import SurfaceVisual
@@ -18,6 +18,7 @@ class VispySurfaceLayer(VispyBaseLayer):
     def __init__(self, layer) -> None:
         node = SurfaceVisual()
         self._texture_filter = None
+        self._face_picking_filter = FacePickingFilter()
         self._light_direction = (-1, 1, 1)
         self._meshdata = None
         super().__init__(layer, node)
@@ -44,6 +45,8 @@ class VispySurfaceLayer(VispyBaseLayer):
         self.layer.normals.vertex.events.connect(
             self._on_vertex_normals_change
         )
+
+        self.node.attach(self._face_picking_filter)
 
         self.reset()
         self._on_data_change()
