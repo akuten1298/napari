@@ -2,7 +2,6 @@
 """
 from __future__ import annotations
 
-import time
 from typing import TYPE_CHECKING
 from weakref import WeakSet
 
@@ -440,9 +439,7 @@ class VispyCanvas:
         """
         layer = self.viewer.layers.selection.active
 
-        if Surface == type(layer):
-            mouse_move_start_time = time.time()
-
+        if isinstance(layer, Surface):
             render_size = tuple(
                 d * self._scene_canvas.pixel_scale
                 for d in self._scene_canvas.size
@@ -458,7 +455,7 @@ class VispyCanvas:
 
             surface_layer.node.update_gl_state(blend=False)
 
-            picking_render = self._scene_canvas.render(
+            layer._picking_render = self._scene_canvas.render(
                 region=(x_pos - 1, y_pos - 1, 3, 3),
                 size=(3, 3),
                 bgcolor=(0, 0, 0, 0),
@@ -469,17 +466,13 @@ class VispyCanvas:
 
             surface_layer.node.update_gl_state(blend=True)
 
-            face_idx = (picking_render.view(np.uint32) - 1)[1, 1, 0]
+            face_idx = (layer._picking_render.view(np.uint32) - 1)[1, 1, 0]
+            print("render view: ", layer._picking_render)
+            print("face idx: ", face_idx)
             if face_idx == 2**32 - 1:
                 face_idx = None
 
-            layer.hovered_face_index = face_idx
-
-            mouse_move_end_time = time.time()
-            print(
-                "total mouse move elapsed time: ",
-                (mouse_move_end_time - mouse_move_start_time) * 1000,
-            )
+            layer._hovered_face_index = face_idx
 
         self._process_mouse_event(mouse_move_callbacks, event)
 
@@ -574,6 +567,34 @@ class VispyCanvas:
                 ],
                 shape_threshold=self._scene_canvas.size,
             )
+
+            # if isinstance(layer, Surface):
+
+            #     render_size = tuple(
+            #         d * self._scene_canvas.pixel_scale
+            #         for d in self._scene_canvas.size
+            #     )
+            #     # x_pos = event.pos[0] * self._scene_canvas.pixel_scale
+            #     # y_pos = render_size[1] - (
+            #     #     event.pos[1] * self._scene_canvas.pixel_scale
+            #     # )
+
+            #     surface_layer = self.layer_to_visual[layer]
+
+            #     surface_layer._face_picking_filter.enabled = True
+
+            #     surface_layer.node.update_gl_state(blend=False)
+
+            #     layer._picking_render = self._scene_canvas.render(
+            #         # region=(x_pos - 1, y_pos - 1, 3, 3),
+            #         # size=(3, 3),
+            #         bgcolor=(0, 0, 0, 0),
+            #         alpha=True,
+            #     )
+
+            #     surface_layer._face_picking_filter.enabled = False
+
+            #     surface_layer.node.update_gl_state(blend=True)
 
     def on_resize(self, event: ResizeEvent) -> None:
         """Called whenever canvas is resized.

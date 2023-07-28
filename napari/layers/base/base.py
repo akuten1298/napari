@@ -3,7 +3,6 @@ from __future__ import annotations
 import itertools
 import logging
 import os.path
-import time
 import warnings
 from abc import ABC, abstractmethod
 from collections import defaultdict
@@ -1860,7 +1859,6 @@ class Layer(KeymapProvider, MousemapProvider, ABC):
         source_info : dict
             Dictionary containing a information that can be used as a status update.
         """
-        start_time = time.time()
         if position is not None:
             position = np.asarray(position)
             value = self.get_value(
@@ -1881,8 +1879,6 @@ class Layer(KeymapProvider, MousemapProvider, ABC):
             source_info['coordinates'] = generate_layer_coords_status(
                 position, value
             )
-        end_time = time.time()
-        print("get_status elapsed time: ", (end_time - start_time) * 1000)
         return source_info
 
     def _get_tooltip_text(

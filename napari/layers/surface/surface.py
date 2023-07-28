@@ -125,8 +125,6 @@ class Surface(IntensityVisualizationMixin, Layer):
         Whether and how to display the edges of the surface mesh with a wireframe.
     normals : None, dict or SurfaceNormals
         Whether and how to display the face and vertex normals of the surface mesh.
-    hovered_face_index : str
-        Index on the mesh that the mouse is hovered above
 
     Attributes
     ----------
@@ -166,8 +164,6 @@ class Surface(IntensityVisualizationMixin, Layer):
         Whether and how to display the edges of the surface mesh with a wireframe.
     normals : SurfaceNormals
         Whether and how to display the face and vertex normals of the surface mesh.
-    hovered_face_index : str
-        Index on the mesh that the mouse is hovered above
 
     Notes
     -----
@@ -207,7 +203,6 @@ class Surface(IntensityVisualizationMixin, Layer):
         texture=None,
         texcoords=None,
         vertex_colors=None,
-        hovered_face_index=None,
     ) -> None:
         ndim = data[0].shape[1]
 
@@ -290,7 +285,8 @@ class Surface(IntensityVisualizationMixin, Layer):
 
         self.wireframe = wireframe
         self.normals = normals
-        self.hovered_face_index = hovered_face_index
+        self._hovered_face_index = None
+        self._picking_render = None
 
     def _calc_data_range(self, mode='data'):
         return calc_data_range(self.vertex_values)
@@ -671,7 +667,7 @@ class Surface(IntensityVisualizationMixin, Layer):
             # return None if the ray doesn't intersect the data bounding box
             return None, None
 
-        if self.hovered_face_index is None:
+        if self._hovered_face_index is None:
             return None, None
 
         start_position, ray_direction = nd_line_segment_to_displayed_data_ray(
@@ -686,10 +682,10 @@ class Surface(IntensityVisualizationMixin, Layer):
         intersection = intersect_line_with_triangles(
             line_point=start_position,
             line_direction=ray_direction,
-            triangles=np.array([mesh_triangles[self.hovered_face_index]]),
+            triangles=mesh_triangles[None, self._hovered_face_index, :, :],
         )[0]
 
-        triangle_vertex_indices = self._view_faces[self.hovered_face_index]
+        triangle_vertex_indices = self._view_faces[self._hovered_face_index]
         triangle_vertices = self._data_view[triangle_vertex_indices]
         barycentric_coordinates = calculate_barycentric_coordinates(
             intersection, triangle_vertices
@@ -697,4 +693,4 @@ class Surface(IntensityVisualizationMixin, Layer):
         vertex_values = self._view_vertex_values[triangle_vertex_indices]
         intersection_value = (barycentric_coordinates * vertex_values).sum()
 
-        return intersection_value, self.hovered_face_index
+        return intersection_value, self._hovered_face_index
