@@ -286,7 +286,6 @@ class Surface(IntensityVisualizationMixin, Layer):
         self.wireframe = wireframe
         self.normals = normals
         self._hovered_face_index = None
-        self._picking_render = None
 
     def _calc_data_range(self, mode='data'):
         return calc_data_range(self.vertex_values)
