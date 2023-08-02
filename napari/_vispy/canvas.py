@@ -448,11 +448,11 @@ class VispyCanvas:
                 event.pos[1] * self._scene_canvas.pixel_scale
             )
 
-            surface_layer = self.layer_to_visual[layer]
+            visual_layer = self.layer_to_visual[layer]
 
-            surface_layer._face_picking_filter.enabled = True
+            visual_layer._face_picking_filter.enabled = True
 
-            surface_layer.node.update_gl_state(blend=False)
+            visual_layer.node.update_gl_state(blend=False)
 
             layer._picking_render = self._scene_canvas.render(
                 region=(x_pos - 1, y_pos - 1, 3, 3),
@@ -461,9 +461,9 @@ class VispyCanvas:
                 alpha=True,
             )
 
-            surface_layer._face_picking_filter.enabled = False
+            visual_layer._face_picking_filter.enabled = False
 
-            surface_layer.node.update_gl_state(blend=True)
+            visual_layer.node.update_gl_state(blend=True)
 
             face_idx = (layer._picking_render.view(np.uint32) - 1)[1, 1, 0]
             if face_idx == 2**32 - 1:
