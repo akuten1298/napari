@@ -1,4 +1,5 @@
 import warnings
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any, List, Optional, Tuple, Union
 
 import numpy as np
@@ -15,6 +16,7 @@ from napari.layers.utils.interactivity_utils import (
     nd_line_segment_to_displayed_data_ray,
 )
 from napari.layers.utils.layer_utils import calc_data_range
+from napari.utils import aabb
 from napari.utils.colormaps import AVAILABLE_COLORMAPS
 from napari.utils.events import Event
 from napari.utils.events.event_utils import connect_no_arg
@@ -125,7 +127,10 @@ class Surface(IntensityVisualizationMixin, Layer):
         Whether and how to display the edges of the surface mesh with a wireframe.
     normals : None, dict or SurfaceNormals
         Whether and how to display the face and vertex normals of the surface mesh.
-
+    first_interaction: bool
+        First interaction for loading bvh
+    bvh_root: None
+        Root of the bvh tree
     Attributes
     ----------
     data : 3-tuple of array
@@ -164,8 +169,10 @@ class Surface(IntensityVisualizationMixin, Layer):
         Whether and how to display the edges of the surface mesh with a wireframe.
     normals : SurfaceNormals
         Whether and how to display the face and vertex normals of the surface mesh.
-
-
+    first_interaction: bool
+        First interaction for loading bvh
+    bvh_root: None
+        Root of the bvh tree
     Notes
     -----
     _data_view : (M, 2) or (M, 3) array
@@ -288,6 +295,11 @@ class Surface(IntensityVisualizationMixin, Layer):
         self.wireframe = wireframe
         self.normals = normals
 
+        self.first_interaction = True
+        self.bvh_root = None
+
+        self._executor = ThreadPoolExecutor(max_workers=1)
+
     def _calc_data_range(self, mode='data'):
         return calc_data_range(self.vertex_values)
 
@@ -321,6 +333,8 @@ class Surface(IntensityVisualizationMixin, Layer):
         self._reset_editable()
         if self._keep_auto_contrast:
             self.reset_contrast_limits()
+
+        self.bvh_root = None
 
     @property
     def vertices(self):
@@ -615,6 +629,8 @@ class Surface(IntensityVisualizationMixin, Layer):
         else:
             self._view_faces = self.faces
 
+        self.bvh_root = None
+
         if self._keep_auto_contrast:
             self.reset_contrast_limits()
 
@@ -676,27 +692,48 @@ class Surface(IntensityVisualizationMixin, Layer):
         # get the mesh triangles
         mesh_triangles = self._data_view[self._view_faces]
 
+        intersection_index = None
+
         # get the triangles intersection
-        intersection_index, intersection = find_nearest_triangle_intersection(
-            ray_position=start_position,
-            ray_direction=ray_direction,
-            triangles=mesh_triangles,
-        )
+        if self.bvh_root is None:
+            mesh_triangles_deep_copy = mesh_triangles.copy()
+            self._executor.submit(self.set_bvh_root, mesh_triangles_deep_copy)
+
+        if self.bvh_root is not None:
+            (
+                intersection_index,
+                intersection,
+                intersected_triangle,
+            ) = aabb.traverse_bvh(
+                aabb, start_position, ray_direction, self.bvh_root
+            )
+        else:
+            (
+                intersection_index,
+                intersection,
+                intersected_triangle,
+            ) = find_nearest_triangle_intersection(
+                ray_position=start_position,
+                ray_direction=ray_direction,
+                triangles=mesh_triangles,
+            )
 
         if intersection_index is None or intersection is None:
             return None, None
 
-        # add the full nD coords to intersection
-        intersection_point = start_point.copy()
-        intersection_point[dims_displayed] = intersection
+        indices = np.where(
+            (mesh_triangles == intersected_triangle).all(axis=(1, 2))
+        )
+        intersected_index = indices[0][0]
+        triangle_vertex_indices = self._view_faces[intersected_index]
 
-        # calculate the value from the intersection
-        triangle_vertex_indices = self._view_faces[intersection_index]
-        triangle_vertices = self._data_view[triangle_vertex_indices]
         barycentric_coordinates = calculate_barycentric_coordinates(
-            intersection, triangle_vertices
+            intersection, intersected_triangle
         )
         vertex_values = self._view_vertex_values[triangle_vertex_indices]
         intersection_value = (barycentric_coordinates * vertex_values).sum()
 
-        return intersection_value, intersection_index
+        return intersection_value, intersected_index
+
+    def set_bvh_root(self, mesh_triangles):
+        self.bvh_root = aabb.construct_bvh(mesh_triangles)

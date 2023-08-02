@@ -784,7 +784,7 @@ def distance_between_point_and_line_3d(
 
 def find_nearest_triangle_intersection(
     ray_position: np.ndarray, ray_direction: np.ndarray, triangles: np.ndarray
-) -> Tuple[Optional[int], Optional[np.ndarray]]:
+) -> Tuple[Optional[int], Optional[np.ndarray], Optional[np.ndarray]]:
     """Given an array of triangles, find the index and intersection location
     of a ray and the nearest triangle.
 
@@ -814,7 +814,7 @@ def find_nearest_triangle_intersection(
 
     n_intersected_triangles = np.sum(inside)
     if n_intersected_triangles == 0:
-        return None, None
+        return None, None, None
 
     # find the intersection points for the
     intersected_triangles = triangles[inside]
@@ -834,4 +834,8 @@ def find_nearest_triangle_intersection(
     ][0]
     intersection = intersection_points[closest_triangle_index]
 
-    return closest_intersected_triangle_index, intersection
+    return (
+        closest_intersected_triangle_index,
+        intersection,
+        triangles[closest_intersected_triangle_index],
+    )

@@ -505,13 +505,14 @@ def test_find_nearest_triangle_intersection(
             ],
         ]
     )
-    index, intersection = find_nearest_triangle_intersection(
+    index, intersection, nearest_triangle = find_nearest_triangle_intersection(
         ray_position=ray_start,
         ray_direction=ray_direction,
         triangles=triangles,
     )
 
     assert index == expected_index
+    assert nearest_triangle.any() is not None
     np.testing.assert_allclose(intersection, expected_position)
 
 
@@ -532,11 +533,12 @@ def test_find_nearest_triangle_intersection_no_intersection():
     ray_start = np.array([0, -10, -10])
     ray_direction = np.array([-1, 0, 0])
 
-    index, intersection = find_nearest_triangle_intersection(
+    index, intersection, nearest_triangle = find_nearest_triangle_intersection(
         ray_position=ray_start,
         ray_direction=ray_direction,
         triangles=triangles,
     )
 
     assert index is None
+    assert nearest_triangle is None
     assert intersection is None
