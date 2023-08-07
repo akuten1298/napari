@@ -16,6 +16,7 @@ from napari.utils.events.event import WarningEmitter
 
 def test_viewer_model():
     """Test instantiating viewer model."""
+    print("init test call")
     viewer = ViewerModel()
     assert viewer.title == 'napari'
     assert len(viewer.layers) == 0
@@ -460,6 +461,7 @@ def test_grid():
 
 def test_add_remove_layer_dims_change():
     """Test dims change appropriately when adding and removing layers."""
+    print("running this test")
     np.random.seed(0)
     viewer = ViewerModel()
 
